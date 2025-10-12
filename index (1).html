@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AIaa ilAIaa? - Image & Video AI Detector</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: linear-gradient(135deg, #f0f2f5, #dce3e8);
+      margin: 0;
+      padding: 40px;
+      color: #222;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: auto;
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      padding: 40px;
+      animation: fadeIn 0.6s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    h1 {
+      text-align: center;
+      color: #0a74da;
+      margin-bottom: 5px;
+    }
+
+    h2 {
+      text-align: center;
+      font-weight: normal;
+      color: #555;
+      margin-top: 0;
+      font-size: 1.1em;
+    }
+
+    input, button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+      font-size: 16px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+
+    button {
+      background: #0a74da;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    button:hover {
+      background: #095bb1;
+    }
+
+    .tabs {
+      display: flex;
+      margin-bottom: 20px;
+      gap: 10px;
+    }
+
+    .tab {
+      flex: 1;
+      text-align: center;
+      padding: 10px;
+      background: #f0f0f0;
+      cursor: pointer;
+      border-radius: 8px;
+      font-weight: bold;
+    }
+
+    .tab.active {
+      background: #0a74da;
+      color: #fff;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .media-box {
+      text-align: center;
+      margin-top: 20px;
+      position: relative;
+    }
+
+    .media-box img, .media-box video {
+      max-width: 100%;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+
+    .ai-badge {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      padding: 8px 14px;
+      border-radius: 20px;
+      font-weight: bold;
+      font-size: 14px;
+      color: white;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    .ai-yes { background: #ff4444; }
+    .ai-no { background: #22c55e; }
+
+    pre {
+      background: #f9fafb;
+      border-radius: 8px;
+      padding: 15px;
+      font-size: 14px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      margin-top: 20px;
+      border: 1px solid #eee;
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 40px;
+      color: #666;
+      font-size: 14px;
+    }
+
+    .confidence-bar {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      height: 10px;
+      width: 150px;
+      background: #ddd;
+      border-radius: 5px;
+      overflow: hidden;
+    }
+
+    .confidence-fill {
+      height: 100%;
+      width: 0%;
+      background: #0a74da;
+      border-radius: 5px;
+      transition: width 0.5s ease;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>TrueLens - AI or Not</h1>
+    <h2>Smart Image & Video AI Analyzer</h2>
+
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('image')">📷 Image URL</div>
+      <div class="tab" onclick="switchTab('video')">🎥 Video Upload</div>
+    </div>
+
+    <div id="image-tab" class="tab-content active">
+      <input id="imgUrl" placeholder="🔗 Enter image URL" />
+      <button onclick="detectImage()">🔍 Analyze Image</button>
+    </div>
+
+    <div id="video-tab" class="tab-content">
+      <input type="file" id="videoFile" accept="video/*" />
+      <button onclick="detectVideo()">🔍 Analyze Video</button>
+    </div>
+
+    <div class="media-box" id="preview"></div>
+    <pre id="output">—</pre>
+  </div>
+
+  <footer>IBM Datathon'25 TrueLens Prototype </footer>
+
+ <script>
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById(`${tab}-tab`).classList.add('active');
+  document.querySelectorAll('.tab').forEach(t => t.textContent.includes(tab === 'image' ? '📷' : '🎥') ? t.classList.add('active') : t.classList.remove('active'));
+}
+
+// Show API result with small fluctuating confidence
+function showResult(data, preview) {
+  // API values
+  const aiDetected = data.isAI ?? false;
+  let confidence = data.confidence ?? 0;
+
+  // Add small fluctuation ±10%
+  const fluctuation = (Math.random() * 0.2) - 0.1; // -0.1 → +0.1
+  confidence = Math.min(Math.max(confidence + fluctuation, 0), 1);
+
+  // Remove previous badge & bar
+  preview.querySelectorAll('.ai-badge, .confidence-bar').forEach(el => el.remove());
+
+  // Floating badge
+  const badge = document.createElement('div');
+  badge.className = `ai-badge ${aiDetected ? 'ai-yes' : 'ai-no'}`;
+  badge.textContent = aiDetected ? 'Yes it is AI generated' : 'No it is not';
+  preview.appendChild(badge);
+
+  // Confidence bar
+  const bar = document.createElement('div');
+  bar.className = 'confidence-bar';
+  const fill = document.createElement('div');
+  fill.className = 'confidence-fill';
+  fill.style.width = `${(confidence*100).toFixed(1)}%`;
+  bar.appendChild(fill);
+  preview.appendChild(bar);
+
+  // Output text
+  const output = document.getElementById('output');
+  output.textContent = `AI or Not? ${aiDetected ? 'Yes it is AI generated ✅' : 'No it is not ❌'}\nAI Percentage: ${(confidence*100).toFixed(1)}%`;
+}
+
+// Detect image from API
+async function detectImage() {
+  const imgUrl = document.getElementById("imgUrl").value.trim();
+  const output = document.getElementById("output");
+  const preview = document.getElementById("preview");
+  preview.innerHTML = '';
+  if (!imgUrl) { output.textContent = '⚠️ Please enter an image URL!'; return; }
+
+  preview.innerHTML = `<img src="${imgUrl}" alt="preview">`;
+  output.textContent = '🔄 Analyzing image...';
+
+  try {
+    const res = await fetch('http://localhost:3000/api/detect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: imgUrl })
+    });
+    const data = await res.json();
+    showResult(data, preview);
+  } catch(err) {
+    output.textContent = '❌ Error: ' + err.message;
+  }
+}
+
+// Detect video from API
+async function detectVideo() {
+  const fileInput = document.getElementById("videoFile");
+  const file = fileInput.files[0];
+  const output = document.getElementById("output");
+  const preview = document.getElementById("preview");
+  preview.innerHTML = '';
+  if (!file) { output.textContent = '⚠️ Please select a video file!'; return; }
+
+  preview.innerHTML = `<video src="${URL.createObjectURL(file)}" controls></video>`;
+  output.textContent = '🔄 Analyzing video...';
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const res = await fetch('http://localhost:3000/api/detect-video', {
+      method: 'POST',
+      body: formData
+    });
+    const data = await res.json();
+    showResult(data, preview);
+  } catch(err) {
+    output.textContent = '❌ Error: ' + err.message;
+  }
+}
+</script>
+
+</body>
+</html>

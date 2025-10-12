@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "form-data": "^4.0.4",
+    "formidable": "^3.5.4"
+  }
+}
